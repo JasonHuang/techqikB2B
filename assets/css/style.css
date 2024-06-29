@@ -1,0 +1,19 @@
+.wp-list-table .column-id {
+    width: auto;
+    /* 自动调整ID列的宽度 */
+}
+
+.wp-list-table .column-name {
+    width: auto;
+    /* 自动调整Name列的宽度 */
+}
+
+.wp-list-table .column-price {
+    width: auto;
+    /* 自动调整Price列的宽度 */
+}
+
+.wp-list-table .column-weight {
+    width: auto;
+    /* 自动调整Weight列的宽度 */
+}
