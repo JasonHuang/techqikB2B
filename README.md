@@ -1,6 +1,6 @@
 # techqikB2B
 
-trying to make woocommerce B2C to B2B
+Trying to make woocommerce B2C to B2B
 
 1, Weight-based shipping class, normally, we don't wrap the products with boxes for wholesale, so the weight-based shipping class is needed.
 
