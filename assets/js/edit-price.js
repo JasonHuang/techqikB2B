@@ -1,25 +1,60 @@
 jQuery(document).ready(function ($) {
-    // 处理价格字段的失焦事件
-    $('.editable-price').on('blur', function () {
-        var priceElement = $(this);
-        var newPrice = priceElement.text();
-        var productId = priceElement.data('product-id');
+    $('.editable-cost').on('blur', function () {
+        var costElement = $(this);
+        var newCost = costElement.text();
+        var productId = costElement.data('product-id');
 
-        // AJAX请求更新价格
         $.ajax({
-            url: ajaxurl,  // WordPress AJAX处理URL
+            url: editPriceData.ajaxurl,  // 使用从PHP传递的ajaxurl
             type: 'POST',
             data: {
-                action: 'update_product_price',  // WordPress后端钩子标识
+                action: 'update_product_cost',
                 product_id: productId,
-                new_price: newPrice
+                new_cost: newCost,
+                security: editPriceData.nonce  // 使用从PHP传递的nonce
             },
             success: function (response) {
-                $('#price-update-message').text('Price updated successfully!').show().fadeOut(3000);
+                showMessage('Cost updated successfully!');
             },
             error: function () {
-                $('#price-update-message').text('Failed to update price.').show().fadeOut(3000);
+                showMessage('Failed to update cost.');
             }
         });
     });
 });
+
+function showMessage(message) {
+    var overlay = document.querySelector('.overlay');
+    var messageBox = document.querySelector('.message-box');
+
+    messageBox.textContent = message; 
+    overlay.style.display = 'block'; 
+
+    setTimeout(function () {
+        overlay.style.display = 'none';
+    }, 2000);
+}
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    var editableCosts = document.querySelectorAll('.editable-cost');
+
+    editableCosts.forEach(function (element) {
+        element.addEventListener('focus', function () {
+            this.contentEditable = true;
+            var range = document.createRange();
+            var selection = window.getSelection();
+
+            selection.removeAllRanges();
+            range.selectNodeContents(this);
+            selection.addRange(range);
+        });
+
+        element.addEventListener('blur', function () {
+            this.contentEditable = false;
+            window.getSelection().removeAllRanges();
+        });
+    });
+});
+
+

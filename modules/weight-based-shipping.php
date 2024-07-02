@@ -133,7 +133,7 @@ function wbs_settings_init() {
         'wbs_exchange_rate_field',
         'wbs-settings',
         'wbs_setting_section'
-    );
+    );    
 }
 
 function wbs_section_text() {

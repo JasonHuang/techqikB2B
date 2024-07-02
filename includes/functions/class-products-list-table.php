@@ -22,24 +22,22 @@ class Products_List_Table extends WP_List_Table {
 
     public function prepare_items() {
         $current_page = $this->get_pagenum();
-        $total_items = $this->get_total_products(); // 获取产品总数的函数
+        $total_items = $this->get_total_products(); 
 
         $this->set_pagination_args(array(
-            'total_items' => $total_items,                   // 数据库中总产品数
-            'per_page'    => $this->per_page                 // 每页显示多少项
+            'total_items' => $total_items,                   
+            'per_page'    => $this->per_page                 
         ));
 
-        $this->items = $this->get_products($current_page, $this->per_page); // 获取当前页的产品数据
+        $this->items = $this->get_products($current_page, $this->per_page); 
         $this->_column_headers = array($this->get_columns(), array(), $this->get_sortable_columns());
     }
 
-    // 获取产品总数
     private function get_total_products() {
         global $wpdb;
         return $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}posts WHERE post_type = 'product'");
     }
 
-    // 获取当前页的产品数据
     private function get_products($current_page, $per_page) {
         global $wpdb;
         $offset = ($current_page - 1) * $per_page;
@@ -83,9 +81,9 @@ class Products_List_Table extends WP_List_Table {
             'sku'       => 'SKU',
             'brand'     => 'Brand',
             'post_title'=> 'Post Title',
-            'cost'     => 'Cost',
-            'price'     => 'Price',
-            'weight'    => 'Weight',
+            'cost'     => 'Cost(CNY)',
+            'price'     => 'Price(USD)',
+            'weight'    => 'Weight(KG)',
             'length'    => 'Length',
             'width'     => 'Width',
             'height'    => 'Height'
@@ -94,32 +92,44 @@ class Products_List_Table extends WP_List_Table {
     }
 
     public function column_default($item, $column_name) {
+        $numeric_fields = ['cost', 'price', 'weight', 'length', 'width', 'height'];
+
         switch ($column_name) {
             case 'sku':
             case 'brand':
             case 'post_title':
+                if (isset($item[$column_name])) {
+                    return esc_html($item[$column_name]);
+                }
+                return 'N/A';
+            
             case 'cost':
             case 'price':
             case 'weight':
             case 'length':
             case 'width':
             case 'height':
-                if (isset($item[$column_name])) {
+                if (isset($item[$column_name]) && $item[$column_name] !== '') {
                     return esc_html($item[$column_name]);
                 }
-                return 'N/A';
+                return '0'; 
+
             default:
                 return print_r($item, true); 
         }
     }
 
-    public function column_price($item) {
+
+    public function column_cost($item) {
+        $cost = isset($item['cost']) && $item['cost'] !== '' ? $item['cost'] : '0';
         return sprintf(
-            '<span class="editable-price" contenteditable="true" data-product-id="%s">%s</span>',
-            $item['ID'],  // 商品ID
-            esc_html($item['price'])  // 当前价格，确保使用 esc_html() 函数来避免XSS攻击
+            '<span class="editable-cost" contenteditable="true" data-product-id="%s">%s</span>',
+            $item['ID'],  
+            esc_html($cost)  
         );
     }
+
+
 
     protected function get_hidden_columns() {
         return array(); 

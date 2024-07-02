@@ -17,3 +17,42 @@
     width: auto;
     /* 自动调整Weight列的宽度 */
 }
+
+.editable-cost {
+    min-width: 50px;
+    display: inline-block;
+    /* 允许宽度生效 */
+}
+
+/* 覆盖层样式 */
+.overlay {
+    display: none;
+    /* 默认不显示 */
+    position: fixed;
+    /* 固定位置 */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    /* 半透明黑色背景 */
+    z-index: 1000;
+    /* 高z-index确保覆盖其他内容 */
+}
+
+/* 提示消息样式 */
+.message-box {
+    position: fixed;
+    top: 50%;
+    /* 中心对齐 */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* 确保准确居中 */
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1001;
+    /* 比背景层稍高 */
+    text-align: center;
+}

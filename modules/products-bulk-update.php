@@ -53,7 +53,9 @@ function display_products_list_table() {
     ?>
     <div class="wrap">
         <h2>Product List</h2>
-        <div id="price-update-message" style="display: none; color: green;"></div>
+        <div class="overlay">
+            <div class="message-box">操作成功!</div>
+        </div>
         <form method="post">
             <?php
             $list_table->display();
@@ -69,7 +71,6 @@ function bulk_update_products_page() {
     <button id="open-popup">Add Data</button>
     <div id="dialog" title="Product Attributes" style="display:none;">
         <form>
-            <!-- 表单内容：选择产品属性 -->
             <input type="submit" value="Submit">
         </form>
     </div>
@@ -85,48 +86,39 @@ function bulk_update_products_page() {
         });
     </script>
     <?php
-    // 调用函数显示产品列表
     display_products_list_table();
 }
 
 function enqueue_admin_scripts_and_styles() {
-    // 加载 jQuery UI Dialog 相关文件
     wp_enqueue_script('jquery-ui-dialog');
     wp_enqueue_style('wp-jquery-ui-dialog');
 
-    // 加载位于 assets/js/ 目录下的自定义编辑价格脚本
-    wp_enqueue_script('edit-price-script', plugins_url('assets/js/edit-price.js', __FILE__), array('jquery'));
-    wp_localize_script('edit-price-script', 'plugin_data', array(
-        'ajaxurl' => admin_url('admin-ajax.php')
+    wp_enqueue_script('edit-price-script', TECHQIKB2B_URL . 'assets/js/edit-price.js', array('jquery'));
+    wp_localize_script('edit-price-script', 'editPriceData', array(
+        'ajaxurl' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('update-cost-nonce')
+
     ));
-    // 可以选择引入其他第三方库，如SweetAlert2
+
+    wp_enqueue_style('plugin-style', TECHQIKB2B_URL . 'assets/css/style.css');
+
 }
 add_action('admin_enqueue_scripts', 'enqueue_admin_scripts_and_styles');
 
-function enqueue_plugin_styles() {
-    wp_enqueue_style('plugin-style', plugins_url('assets/css/style.css', __FILE__));
-}
-add_action('admin_enqueue_scripts', 'enqueue_plugin_styles');
+add_action('wp_ajax_update_product_cost', 'handle_update_product_cost');
 
+function handle_update_product_cost() {
+    if (!isset($_POST['product_id'], $_POST['new_cost'], $_POST['security']) ||
+        !wp_verify_nonce($_POST['security'], 'update-cost-nonce')) {
+        wp_send_json_error('Invalid request or failed nonce verification.');
+        return;
+    }
+    $product_id = intval($_POST['product_id']);
+    $new_cost = floatval($_POST['new_cost']);
 
-add_action('wp_ajax_update_product_price', 'handle_update_product_price');
-
-function handle_update_product_price() {
-    global $wpdb;
-    $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
-    $new_price = isset($_POST['new_price']) ? floatval($_POST['new_price']) : 0;
-
-    if ($product_id > 0 && $new_price >= 0) {
-        $wpdb->update(
-            $wpdb->postmeta,
-            array('meta_value' => $new_price),
-            array(
-                'post_id' => $product_id,
-                'meta_key' => '_price'
-            )
-        );
-        wp_send_json_success('Price updated.');
+    if (update_post_meta($product_id, '_cost', $new_cost)) {
+        wp_send_json_success('Cost updated or added successfully.');
     } else {
-        wp_send_json_error('Failed to update price.');
+        wp_send_json_error('No changes made to cost, or update failed.');
     }
 }

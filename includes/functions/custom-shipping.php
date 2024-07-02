@@ -57,7 +57,7 @@ function wbs_add_shipping_method() {
 
 
                 $weight = 0;
-                error_log(json_encode($options));
+                // error_log(json_encode($options));
                 foreach ( $package['contents'] as $item_id => $values ) {
                     $_product = $values['data'];
                     $product_weight = $_product->get_weight();
