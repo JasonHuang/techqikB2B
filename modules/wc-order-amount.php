@@ -98,7 +98,7 @@ function wc_enable_order_amount_limit_field() {
 }
 
 function wc_order_amount_section_text() {
-    echo '<p>Enter the minimum and maximum order amounts.</p>';
+    echo '<p>Enter the minimum and maximum order amounts that you allowed.</p>';
 }
 
 function wc_min_order_amount_field() {

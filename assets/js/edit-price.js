@@ -1,60 +1,60 @@
-jQuery(document).ready(function ($) {
-    $('.editable-cost').on('blur', function () {
-        var costElement = $(this);
-        var newCost = costElement.text();
-        var productId = costElement.data('product-id');
-
-        $.ajax({
-            url: editPriceData.ajaxurl,  // 使用从PHP传递的ajaxurl
-            type: 'POST',
-            data: {
-                action: 'update_product_cost',
-                product_id: productId,
-                new_cost: newCost,
-                security: editPriceData.nonce  // 使用从PHP传递的nonce
-            },
-            success: function (response) {
-                showMessage('Cost updated successfully!');
-            },
-            error: function () {
-                showMessage('Failed to update cost.');
+(function ($) {
+    $(document).ready(function () {
+        $('.editable-field').on('focus', function () {
+            if (typeof $(this).data('original-value') === 'undefined') {
+                $(this).data('original-value', $(this).text());
             }
-        });
-    });
-});
-
-function showMessage(message) {
-    var overlay = document.querySelector('.overlay');
-    var messageBox = document.querySelector('.message-box');
-
-    messageBox.textContent = message; 
-    overlay.style.display = 'block'; 
-
-    setTimeout(function () {
-        overlay.style.display = 'none';
-    }, 2000);
-}
-
-
-document.addEventListener('DOMContentLoaded', function () {
-    var editableCosts = document.querySelectorAll('.editable-cost');
-
-    editableCosts.forEach(function (element) {
-        element.addEventListener('focus', function () {
-            this.contentEditable = true;
             var range = document.createRange();
             var selection = window.getSelection();
-
             selection.removeAllRanges();
             range.selectNodeContents(this);
             selection.addRange(range);
+            // $(this).attr('contentEditable', true);
         });
 
-        element.addEventListener('blur', function () {
-            this.contentEditable = false;
+        $('.editable-field').on('blur', function () {
+            // $(this).attr('contentEditable', false);
             window.getSelection().removeAllRanges();
+
+            var costElement = $(this);
+            var field = costElement.data('field');
+            var originalValue = costElement.data('original-value').toString();
+            var newValue = costElement.text().trim();
+
+            if (originalValue === newValue) {
+                return;
+            }
+
+            $.ajax({
+                url: editPriceData.ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'update_product_cost',
+                    product_id: costElement.data('product-id'),
+                    field:field,
+                    new_value: newValue,
+                    security: editPriceData.nonce
+                },
+                success: function (response) {
+                    // showMessage('Cost updated successfully!');
+                },
+                error: function () {
+                    showMessage('Failed to update cost.');
+                }
+            });
         });
     });
-});
 
+    // 确保showMessage函数也在IIFE内
+    function showMessage(message) {
+        var overlay = $('.overlay');
+        var messageBox = $('.message-box');
 
+        messageBox.text(message);
+        overlay.show();
+
+        setTimeout(function () {
+            overlay.hide();
+        }, 1000);
+    }
+})(jQuery);

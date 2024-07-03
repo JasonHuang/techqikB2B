@@ -55,20 +55,23 @@ function wbs_add_shipping_method() {
                 $surcharge = isset($options['surcharge']) ? $options['surcharge'] : 1;
                 $packaging_weight = isset($options['packaging_weight']) ? $options['packaging_weight'] : 0;
 
-
                 $weight = 0;
-                // error_log(json_encode($options));
                 foreach ( $package['contents'] as $item_id => $values ) {
                     $_product = $values['data'];
                     $product_weight = $_product->get_weight();
+                    error_log("product_weight:$product_weight");
+                    error_log("packaging_weight:$packaging_weight");
+
                     if ($product_weight) {
                         $weight += $_product->get_weight() * $values['quantity'] + $packaging_weight/1000;
                     }else{
                         $weight += 0.05 * $values['quantity'] + $packaging_weight/1000;
                     }
                 }
+                error_log("weight:$weight");
 
                 $cost = (($weight * $per_kg_rate) + $registration_fee + $surcharge) / $exchange_rate;
+                error_log("cost:$cost");
 
                 $rate = array(
                     'id'    => $this->id,

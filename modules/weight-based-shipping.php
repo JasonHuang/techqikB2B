@@ -35,7 +35,6 @@ function wbs_settings_page() {
         wp_die(__('You do not have sufficient permissions to access this page.'));
     }
 
-    settings_errors();  
     ?>
     <div class="wrap">
         <h1>Weight Based Shipping Settings</h1>

@@ -18,7 +18,7 @@
     /* 自动调整Weight列的宽度 */
 }
 
-.editable-cost {
+.editable-field {
     min-width: 50px;
     display: inline-block;
     /* 允许宽度生效 */

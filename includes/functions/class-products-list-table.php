@@ -19,7 +19,6 @@ class Products_List_Table extends WP_List_Table {
         }
     }
 
-
     public function prepare_items() {
         $current_page = $this->get_pagenum();
         $total_items = $this->get_total_products(); 
@@ -33,11 +32,24 @@ class Products_List_Table extends WP_List_Table {
         $this->_column_headers = array($this->get_columns(), array(), $this->get_sortable_columns());
     }
 
+    // private function get_total_products() {
+    //     global $wpdb;
+    //     return $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}posts WHERE post_type = 'product'");
+    // }
+
     private function get_total_products() {
         global $wpdb;
-        return $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}posts WHERE post_type = 'product'");
+        $search_query = '';
+        if (!empty($_REQUEST['s'])) {
+            $search = esc_sql($_REQUEST['s']);
+            $search_query = "AND (p.post_title LIKE '%$search%' OR pm.meta_value LIKE '%$search%')";
+        }
+        return $wpdb->get_var("SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->prefix}posts p 
+            LEFT JOIN {$wpdb->prefix}postmeta pm ON p.ID = pm.post_id 
+            WHERE p.post_type = 'product' $search_query");
     }
 
+    /*
     private function get_products($current_page, $per_page) {
         global $wpdb;
         $offset = ($current_page - 1) * $per_page;
@@ -72,6 +84,48 @@ class Products_List_Table extends WP_List_Table {
             $offset, $per_page
         );
         return $wpdb->get_results($sql, ARRAY_A);
+    }*/
+
+    private function get_products($current_page, $per_page) {
+        global $wpdb;
+        $offset = ($current_page - 1) * $per_page;
+        $search_query = '';
+        if (!empty($_REQUEST['s'])) {
+            $search = esc_sql($_REQUEST['s']);
+            $search_query = "WHERE (pp.post_title LIKE '%$search%' OR pp.sku LIKE '%$search%')";
+        }
+        $sql = $wpdb->prepare(
+            "SELECT * FROM(
+            SELECT 
+                p.ID, 
+                p.post_title,
+                MAX(CASE WHEN pm.meta_key = '_price' THEN pm.meta_value ELSE NULL END) AS price,
+                MAX(CASE WHEN pm.meta_key = '_weight' THEN pm.meta_value ELSE NULL END) AS weight,
+                MAX(CASE WHEN pm.meta_key = '_sku' THEN pm.meta_value ELSE NULL END) AS sku,
+                MAX(CASE WHEN pm.meta_key = '_length' THEN pm.meta_value ELSE NULL END) AS length,
+                MAX(CASE WHEN pm.meta_key = '_width' THEN pm.meta_value ELSE NULL END) AS width,
+                MAX(CASE WHEN pm.meta_key = '_height' THEN pm.meta_value ELSE NULL END) AS height,
+                MAX(CASE WHEN pm.meta_key = '_cost' THEN pm.meta_value ELSE NULL END) AS cost,
+                GROUP_CONCAT(DISTINCT CASE WHEN tt.taxonomy = 'ts_product_brand' THEN t.name ELSE NULL END) AS brand
+            FROM 
+                {$wpdb->prefix}posts p
+            LEFT JOIN 
+                {$wpdb->prefix}postmeta pm ON p.ID = pm.post_id
+            LEFT JOIN 
+                {$wpdb->prefix}term_relationships tr ON p.ID = tr.object_id
+            LEFT JOIN 
+                {$wpdb->prefix}term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+            LEFT JOIN 
+                {$wpdb->prefix}terms t ON tt.term_id = t.term_id
+            WHERE 
+                p.post_type = 'product' 
+            GROUP BY 
+                p.ID) pp
+            $search_query
+            LIMIT %d, %d",
+            $offset, $per_page
+        );
+        return $wpdb->get_results($sql, ARRAY_A);
     }
 
 
@@ -81,12 +135,13 @@ class Products_List_Table extends WP_List_Table {
             'sku'       => 'SKU',
             'brand'     => 'Brand',
             'post_title'=> 'Post Title',
-            'cost'     => 'Cost(CNY)',
-            'price'     => 'Price(USD)',
-            'weight'    => 'Weight(KG)',
-            'length'    => 'Length',
-            'width'     => 'Width',
-            'height'    => 'Height'
+            'cost'      => 'Cost (CNY)',
+            'price'     => 'Price (USD)',
+            'weight'    => 'Weight (KG)',
+            'length'    => 'Length(cm)',
+            'width'     => 'Width(cm)',
+            'height'    => 'Height(cm)',
+            'actions'   => 'Actions'
         );
         return $columns;
     }
@@ -96,40 +151,57 @@ class Products_List_Table extends WP_List_Table {
 
         switch ($column_name) {
             case 'sku':
+                $product_url = get_permalink($item['ID']);
+                $sku = isset($item[$column_name]) ? esc_html($item[$column_name]) : 'N/A';
+                return sprintf(
+                    '<a href="%s" target="_blank" class="product-link" data-product-id="%s">%s</a>',
+                    esc_url($product_url),
+                    esc_attr($item['ID']),
+                    $sku
+                );
+
             case 'brand':
             case 'post_title':
-                if (isset($item[$column_name])) {
-                    return esc_html($item[$column_name]);
-                }
-                return 'N/A';
-            
-            case 'cost':
+                return isset($item[$column_name]) ? esc_html($item[$column_name]) : 'N/A';
+
             case 'price':
+                return isset($item[$column_name]) && $item[$column_name] !== '' ? esc_html($item[$column_name]) : '0';
+
+            case 'cost':
             case 'weight':
             case 'length':
             case 'width':
             case 'height':
-                if (isset($item[$column_name]) && $item[$column_name] !== '') {
-                    return esc_html($item[$column_name]);
-                }
-                return '0'; 
+                // return isset($item[$column_name]) && $item[$column_name] !== '' ? esc_html($item[$column_name]) : '0';
+                $value = isset($item[$column_name]) && $item[$column_name] !== '' ? esc_html($item[$column_name]) : '0';
+                return sprintf(
+                    '<span class="editable-field" contenteditable="true" data-product-id="%s" data-field="%s" data-original-value="%s">%s</span>',
+                    esc_attr($item['ID']),
+                    esc_attr($column_name),
+                    esc_attr($value),
+                    esc_html($value)
+                );
+            case 'actions':
+                $edit_url = admin_url('post.php?post=' . $item['ID'] . '&action=edit');
+                return sprintf(
+                    '<a target="_blank" href="%s" class="button">Edit</a>',
+                    esc_url($edit_url)
+                );
 
             default:
                 return print_r($item, true); 
         }
     }
 
-
-    public function column_cost($item) {
-        $cost = isset($item['cost']) && $item['cost'] !== '' ? $item['cost'] : '0';
-        return sprintf(
-            '<span class="editable-cost" contenteditable="true" data-product-id="%s">%s</span>',
-            $item['ID'],  
-            esc_html($cost)  
-        );
-    }
-
-
+    // public function column_cost($item) {
+    //     $cost = isset($item['cost']) && $item['cost'] !== '' ? $item['cost'] : '0';
+    //     return sprintf(
+    //         '<span class="editable-cost" contenteditable="true" data-product-id="%s" data-original-value="%s">%s</span>',
+    //         esc_attr($item['ID']), 
+    //         esc_attr($item['cost']),
+    //         esc_html($cost)  
+    //     );
+    // }
 
     protected function get_hidden_columns() {
         return array(); 
@@ -137,15 +209,15 @@ class Products_List_Table extends WP_List_Table {
 
     protected function get_sortable_columns() {
         return array(
-            'sku' => array('sku', true),
-            'brand' => array('brand', false),
+            'sku'        => array('sku', true),
+            'brand'      => array('brand', false),
             'post_title' => array('post_title', true),
-            'cost' => array('cost', false),
-            'price' => array('price', false),
-            'weight' => array('weight', false),
-            'length' => array('length', false),
-            'width' => array('width', false),
-            'height' => array('height', false)
+            'cost'       => array('cost', false),
+            'price'      => array('price', false),
+            'weight'     => array('weight', false),
+            'length'     => array('length', false),
+            'width'      => array('width', false),
+            'height'     => array('height', false)
         );
     }
 
@@ -158,7 +230,7 @@ class Products_List_Table extends WP_List_Table {
     public function extra_tablenav($which) {
         if ($which == "top") {
             $per_page = $this->get_items_per_page('products_per_page', 10);
-            $current_url = remove_query_arg('products_per_page'); // 获取当前 URL 并移除现有的 'products_per_page' 参数
+            $current_url = remove_query_arg('products_per_page');
 
             echo '<div class="alignleft actions">';
             echo '<label for="products_per_page" class="screen-reader-text">' . __('Products per page', 'wc-product-import-export') . '</label>';

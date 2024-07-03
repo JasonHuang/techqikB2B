@@ -50,11 +50,19 @@ add_filter('set-screen-option', 'set_screen_option', 10, 3);
 function display_products_list_table() {
     $list_table = new Products_List_Table();
     $list_table->prepare_items();
+    $search_query = isset($_GET['s']) ? esc_attr($_GET['s']) : '';
     ?>
     <div class="wrap">
         <h2>Product List</h2>
         <div class="overlay">
             <div class="message-box">操作成功!</div>
+        </div>
+        <div class="search-box">
+            <form method="get">
+                <input type="hidden" name="page" value="techqikb2b_product_bulk_update">
+                <input type="text" name="s" placeholder="Search products" value="<?php echo $search_query; ?>">
+                <input type="submit" value="Search" class="button">
+            </form>
         </div>
         <form method="post">
             <?php
@@ -108,15 +116,39 @@ add_action('admin_enqueue_scripts', 'enqueue_admin_scripts_and_styles');
 add_action('wp_ajax_update_product_cost', 'handle_update_product_cost');
 
 function handle_update_product_cost() {
-    if (!isset($_POST['product_id'], $_POST['new_cost'], $_POST['security']) ||
+    if (!isset($_POST['product_id'], $_POST['new_value'], $_POST['security']) ||
         !wp_verify_nonce($_POST['security'], 'update-cost-nonce')) {
         wp_send_json_error('Invalid request or failed nonce verification.');
         return;
     }
     $product_id = intval($_POST['product_id']);
-    $new_cost = floatval($_POST['new_cost']);
+    $new_value = floatval($_POST['new_value']);
+    $field = sanitize_text_field($_POST['field']);
 
-    if (update_post_meta($product_id, '_cost', $new_cost)) {
+    $meta_key = '';
+
+    switch ($field) {
+        case 'cost':
+            $meta_key = '_cost';
+            break;
+        case 'weight':
+            $meta_key = '_weight';
+            break;
+        case 'length':
+            $meta_key = '_length';
+            break;
+        case 'width':
+            $meta_key = '_width';
+            break;
+        case 'height':
+            $meta_key = '_height';
+            break;
+        default:
+            wp_send_json_error('Invalid field.');
+            return;
+    }
+
+    if (update_post_meta($product_id, $meta_key, $new_value)) {
         wp_send_json_success('Cost updated or added successfully.');
     } else {
         wp_send_json_error('No changes made to cost, or update failed.');
