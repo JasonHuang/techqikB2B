@@ -56,7 +56,7 @@ class Products_List_Table extends WP_List_Table {
             LEFT JOIN {$wpdb->prefix}postmeta pm ON p.ID = pm.post_id 
             WHERE p.post_type IN ('product', 'product_variation') $search_query");
     }
-
+/*
     private function get_products($current_page, $per_page) {
         global $wpdb;
         $offset = ($current_page - 1) * $per_page;
@@ -111,6 +111,110 @@ class Products_List_Table extends WP_List_Table {
             $offset, $per_page
         );
         return $wpdb->get_results($sql, ARRAY_A);
+    }*/
+    private function get_products($current_page, $per_page) {
+        global $wpdb;
+        $offset = ($current_page - 1) * $per_page;
+        $search_query = '';
+        $search_params = array();
+        if (!empty($_REQUEST['s'])) {
+            $search = '%' . $wpdb->esc_like($_REQUEST['s']) . '%';
+            $search_query = "AND (p.post_title LIKE %s OR pm.meta_value LIKE %s)";
+            $search_params = array($search, $search);
+        }
+
+        // 1. 获取基本产品信息
+        $products_query = $wpdb->prepare(
+            "SELECT p.ID, p.post_title, p.post_parent
+            FROM {$wpdb->posts} p
+            LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+            WHERE p.post_type IN ('product', 'product_variation')
+            $search_query
+            GROUP BY p.ID
+            ORDER BY p.post_parent, p.ID
+            LIMIT %d, %d",
+            array_merge($search_params, array($offset, $per_page))
+        );
+        $products = $wpdb->get_results($products_query, ARRAY_A);
+
+        if (empty($products)) {
+            return array();
+        }
+
+        $product_ids = wp_list_pluck($products, 'ID');
+        $placeholders = array_fill(0, count($product_ids), '%d');
+        $product_ids_format = implode(',', $placeholders);
+
+        // 2. 获取产品元数据
+        $meta_query = $wpdb->prepare(
+            "SELECT post_id, meta_key, meta_value
+            FROM {$wpdb->postmeta}
+            WHERE post_id IN ($product_ids_format)
+            AND meta_key IN ('_sku', '_price', '_weight', '_length', '_width', '_height', '_cost')",
+            $product_ids
+        );
+        $metas = $wpdb->get_results($meta_query, ARRAY_A);
+
+        // 3. 获取产品属性
+        $attr_query = $wpdb->prepare(
+            "SELECT post_id, meta_key, meta_value
+            FROM {$wpdb->postmeta}
+            WHERE post_id IN ($product_ids_format)
+            AND meta_key LIKE %s",
+            array_merge($product_ids, array('_attribute_%'))
+        );
+        $attributes = $wpdb->get_results($attr_query, ARRAY_A);
+
+        // 4. 获取品牌信息
+        $brand_query = $wpdb->prepare(
+            "SELECT tr.object_id, t.name
+            FROM {$wpdb->term_relationships} tr
+            JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+            JOIN {$wpdb->terms} t ON tt.term_id = t.term_id
+            WHERE tr.object_id IN ($product_ids_format)
+            AND tt.taxonomy = %s",
+            array_merge($product_ids, array('ts_product_brand'))
+        );
+        $brands = $wpdb->get_results($brand_query, ARRAY_A);
+
+        // 5. 整合数据
+        $result = array();
+        foreach ($products as $product) {
+            $product_data = array(
+                'ID' => $product['ID'],
+                'post_title' => $product['post_title'],
+                'post_parent' => $product['post_parent']
+            );
+
+            // 添加元数据
+            foreach ($metas as $meta) {
+                if ($meta['post_id'] == $product['ID']) {
+                    $key = ltrim($meta['meta_key'], '_');
+                    $product_data[$key] = $meta['meta_value'];
+                }
+            }
+
+            // 添加属性
+            $product_attributes = array();
+            foreach ($attributes as $attr) {
+                if ($attr['post_id'] == $product['ID']) {
+                    $product_attributes[] = $attr['meta_key'] . ': ' . $attr['meta_value'];
+                }
+            }
+            $product_data['attributes'] = implode(', ', $product_attributes);
+
+            // 添加品牌
+            foreach ($brands as $brand) {
+                if ($brand['object_id'] == $product['ID']) {
+                    $product_data['brand'] = $brand['name'];
+                    break;
+                }
+            }
+
+            $result[] = $product_data;
+        }
+
+        return $result;
     }
 
     public function get_columns() {
