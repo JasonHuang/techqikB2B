@@ -56,3 +56,8 @@
     /* 比背景层稍高 */
     text-align: center;
 }
+
+.variation-row {
+    background-color: #f9f9f9;
+    padding-left: 20px;
+}
