@@ -143,6 +143,8 @@ function wbs_exchange_rate_field() {
     $options = get_option('wbs_options');
     $rate = isset($options['exchange_rate']) ? $options['exchange_rate'] : '7.5'; // 默认值假设为 0.15
     echo "<input id='wbs_exchange_rate' name='wbs_options[exchange_rate]' type='number' step='0.01' value='" . esc_attr($rate) . "' style='width: 80px;' />";
+    echo "<span style='margin-left: 10px;'> You will benefit when this rate is greater than current rate.</span>";
+
 }
 
 /*function wbs_enable_field() {

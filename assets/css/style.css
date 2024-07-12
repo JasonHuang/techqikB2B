@@ -58,6 +58,12 @@
 }
 
 .variation-row {
-    background-color: #f9f9f9;
-    padding-left: 20px;
+    color: #666;
+    /* 改变字体颜色 */
+    font-style: italic;
+    /* 斜体显示 */
+
+    box-shadow: inset 5px 0 0 0 #f9f9f9;
+    padding-left: 15px;
+    /* 调整padding以适应阴影 */
 }

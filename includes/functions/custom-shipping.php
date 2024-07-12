@@ -43,7 +43,6 @@ function wbs_add_shipping_method() {
                         'default'     => __( 'Weight Based Shipping', 'wbs' ),
                         'desc_tip'    => true,
                     ),
-                    // 更多设置项...
                 );
             }
 

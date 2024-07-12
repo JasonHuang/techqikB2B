@@ -6,9 +6,9 @@ if (!class_exists('WP_List_Table')) {
 
 class Products_List_Table extends WP_List_Table {
     private $per_page;
-    private $use_cost_profit;
-    private $general_profit;
-    private $exchange_rate;
+    // private $use_cost_profit;
+    // private $general_profit;
+    // private $exchange_rate;
 
     public function __construct($args = array()) {
         parent::__construct($args);
@@ -20,16 +20,16 @@ class Products_List_Table extends WP_List_Table {
             update_user_meta(get_current_user_id(), 'products_per_page', $this->per_page);
         }
 
-        $options = get_option('techqik_general_options');
-        $this->use_cost_profit = isset($options['use_cost_profit']) ? $options['use_cost_profit'] : 0;
-        $this->general_profit = isset($options['general_profit']) ? floatval($options['general_profit']) : 0;
+        // $options = get_option('techqik_general_options');
+        // $this->use_cost_profit = isset($options['use_cost_profit']) ? $options['use_cost_profit'] : 0;
+        // $this->general_profit = isset($options['general_profit']) ? floatval($options['general_profit']) : 0;
 
-        $options_wbs = get_option('wbs_options');
-        $this->exchange_rate = isset($options_wbs['exchange_rate']) ? floatval($options_wbs['exchange_rate']) : 1;
+        // $options_wbs = get_option('wbs_options');
+        // $this->exchange_rate = isset($options_wbs['exchange_rate']) ? floatval($options_wbs['exchange_rate']) : 1;
 
-        error_log("use_cost_profit:$this->use_cost_profit");
-        error_log("general_profit:$this->general_profit");
-        error_log("exchange_rate:$this->exchange_rate");
+        // error_log("use_cost_profit:$this->use_cost_profit");
+        // error_log("general_profit:$this->general_profit");
+        // error_log("exchange_rate:$this->exchange_rate");
     }
 
     public function prepare_items() {
@@ -56,62 +56,7 @@ class Products_List_Table extends WP_List_Table {
             LEFT JOIN {$wpdb->prefix}postmeta pm ON p.ID = pm.post_id 
             WHERE p.post_type IN ('product', 'product_variation') $search_query");
     }
-/*
-    private function get_products($current_page, $per_page) {
-        global $wpdb;
-        $offset = ($current_page - 1) * $per_page;
-        $search_query = '';
-        if (!empty($_REQUEST['s'])) {
-            $search = esc_sql($_REQUEST['s']);
-            $search_query = "AND (p.post_title LIKE '%$search%' OR pm.meta_value LIKE '%$search%' OR pm_attr.meta_value LIKE '%$search%')";
-        }
-        $sql = $wpdb->prepare(
-            "SELECT * FROM (
-                SELECT 
-                    p.ID, 
-                    p.post_title,
-                    p.post_parent,
-                    COALESCE(MAX(pm_sku.meta_value), MAX(p2_sku.meta_value)) AS sku,
-                    MAX(CASE WHEN pm.meta_key = '_price' THEN pm.meta_value ELSE NULL END) AS price,
-                    MAX(CASE WHEN pm.meta_key = '_weight' THEN pm.meta_value ELSE NULL END) AS weight,
-                    MAX(CASE WHEN pm.meta_key = '_length' THEN pm.meta_value ELSE NULL END) AS length,
-                    MAX(CASE WHEN pm.meta_key = '_width' THEN pm.meta_value ELSE NULL END) AS width,
-                    MAX(CASE WHEN pm.meta_key = '_height' THEN pm.meta_value ELSE NULL END) AS height,
-                    MAX(CASE WHEN pm.meta_key = '_cost' THEN pm.meta_value ELSE NULL END) AS cost,
-                    GROUP_CONCAT(DISTINCT CASE WHEN pm_attr.meta_key LIKE '_attribute_%' THEN CONCAT(pm_attr.meta_key, ': ', pm_attr.meta_value) ELSE NULL END SEPARATOR ', ') AS attributes,
-                    MAX(p2.post_title) AS parent_title,
-                    GROUP_CONCAT(DISTINCT CASE WHEN tt.taxonomy = 'ts_product_brand' THEN t.name ELSE NULL END) AS brand
-                FROM 
-                    {$wpdb->prefix}posts p
-                LEFT JOIN 
-                    {$wpdb->prefix}postmeta pm ON p.ID = pm.post_id
-                LEFT JOIN 
-                    {$wpdb->prefix}postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
-                LEFT JOIN 
-                    {$wpdb->prefix}postmeta pm_attr ON p.ID = pm_attr.post_id AND pm_attr.meta_key LIKE '_attribute_%'
-                LEFT JOIN 
-                    {$wpdb->prefix}posts p2 ON p.post_parent = p2.ID
-                LEFT JOIN 
-                    {$wpdb->prefix}postmeta p2_sku ON p2.ID = p2_sku.post_id AND p2_sku.meta_key = '_sku'
-                LEFT JOIN 
-                    {$wpdb->prefix}term_relationships tr ON p.ID = tr.object_id
-                LEFT JOIN 
-                    {$wpdb->prefix}term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
-                LEFT JOIN 
-                    {$wpdb->prefix}terms t ON tt.term_id = t.term_id
-                WHERE 
-                    p.post_type IN ('product', 'product_variation')
-                    $search_query
-                GROUP BY 
-                    p.ID
-                ORDER BY 
-                    p.post_parent, p.ID
-            ) pp
-            LIMIT %d, %d",
-            $offset, $per_page
-        );
-        return $wpdb->get_results($sql, ARRAY_A);
-    }*/
+
     private function get_products($current_page, $per_page) {
         global $wpdb;
         $offset = ($current_page - 1) * $per_page;
@@ -119,15 +64,17 @@ class Products_List_Table extends WP_List_Table {
         $search_params = array();
         if (!empty($_REQUEST['s'])) {
             $search = '%' . $wpdb->esc_like($_REQUEST['s']) . '%';
-            $search_query = "AND (p.post_title LIKE %s OR pm.meta_value LIKE %s)";
-            $search_params = array($search, $search);
+            $search_query = "AND (p.post_title LIKE %s OR pm.meta_value LIKE %s OR p2.post_title LIKE %s OR pm2.meta_value like %s)";
+            $search_params = array($search, $search, $search, $search);
         }
 
         // 1. 获取基本产品信息
         $products_query = $wpdb->prepare(
-            "SELECT p.ID, p.post_title, p.post_parent
+            "SELECT p.ID, p.post_title, p.post_parent, p2.post_title as parent_title
             FROM {$wpdb->posts} p
             LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+            LEFT JOIN {$wpdb->posts} p2 ON p.post_parent = p2.ID
+            LEFT JOIN {$wpdb->postmeta} pm2 ON p2.ID = pm2.post_id
             WHERE p.post_type IN ('product', 'product_variation')
             $search_query
             GROUP BY p.ID
@@ -135,6 +82,7 @@ class Products_List_Table extends WP_List_Table {
             LIMIT %d, %d",
             array_merge($search_params, array($offset, $per_page))
         );
+        // error_log("products_query:$products_query");
         $products = $wpdb->get_results($products_query, ARRAY_A);
 
         if (empty($products)) {
@@ -155,17 +103,7 @@ class Products_List_Table extends WP_List_Table {
         );
         $metas = $wpdb->get_results($meta_query, ARRAY_A);
 
-        // 3. 获取产品属性
-        $attr_query = $wpdb->prepare(
-            "SELECT post_id, meta_key, meta_value
-            FROM {$wpdb->postmeta}
-            WHERE post_id IN ($product_ids_format)
-            AND meta_key LIKE %s",
-            array_merge($product_ids, array('_attribute_%'))
-        );
-        $attributes = $wpdb->get_results($attr_query, ARRAY_A);
-
-        // 4. 获取品牌信息
+        // 3. 获取品牌信息
         $brand_query = $wpdb->prepare(
             "SELECT tr.object_id, t.name
             FROM {$wpdb->term_relationships} tr
@@ -177,13 +115,14 @@ class Products_List_Table extends WP_List_Table {
         );
         $brands = $wpdb->get_results($brand_query, ARRAY_A);
 
-        // 5. 整合数据
+        // 4. 整合数据
         $result = array();
         foreach ($products as $product) {
             $product_data = array(
                 'ID' => $product['ID'],
                 'post_title' => $product['post_title'],
-                'post_parent' => $product['post_parent']
+                'post_parent' => $product['post_parent'],
+                'parent_title' => $product['parent_title']
             );
 
             // 添加元数据
@@ -193,15 +132,6 @@ class Products_List_Table extends WP_List_Table {
                     $product_data[$key] = $meta['meta_value'];
                 }
             }
-
-            // 添加属性
-            $product_attributes = array();
-            foreach ($attributes as $attr) {
-                if ($attr['post_id'] == $product['ID']) {
-                    $product_attributes[] = $attr['meta_key'] . ': ' . $attr['meta_value'];
-                }
-            }
-            $product_data['attributes'] = implode(', ', $product_attributes);
 
             // 添加品牌
             foreach ($brands as $brand) {
@@ -217,13 +147,13 @@ class Products_List_Table extends WP_List_Table {
         return $result;
     }
 
+
     public function get_columns() {
         $columns = array(
             'cb'        => '<input type="checkbox" />',
             'sku'       => 'SKU',
             'brand'     => 'Brand',
             'post_title'=> 'Post Title',
-            'attributes'=> 'Attributes',
             'cost'      => 'Cost (CNY)',
             'price'     => 'Price (USD)',
             'weight'    => 'Weight (KG)',
@@ -256,17 +186,14 @@ class Products_List_Table extends WP_List_Table {
                 }
                 return $title;
 
-            case 'attributes':
-                return isset($item[$column_name]) ? esc_html($item[$column_name]) : 'N/A';
-
             case 'price':
-                if ($this->use_cost_profit) {
-                    $cost = isset($item['cost']) ? floatval($item['cost']) : 0;
-                    $price = $cost / $this->exchange_rate + $this->general_profit;
-                    return esc_html(number_format($price, 2, '.', ''));
-                } else {
-                    return isset($item[$column_name]) && $item[$column_name] !== '' ? esc_html($item[$column_name]) : '0';
-                }
+                // if ($this->use_cost_profit) {
+                //     $cost = isset($item['cost']) ? floatval($item['cost']) : 0;
+                //     $price = $cost / $this->exchange_rate + $this->general_profit;
+                //     return esc_html(number_format($price, 2, '.', ''));
+                // } else {
+                return isset($item[$column_name]) && $item[$column_name] !== '' ? esc_html($item[$column_name]) : '0';
+                // }
 
             case 'cost':
             case 'weight':
@@ -283,11 +210,14 @@ class Products_List_Table extends WP_List_Table {
                 );
 
             case 'actions':
-                $edit_url = admin_url('post.php?post=' . $item['ID'] . '&action=edit');
-                return sprintf(
-                    '<a target="_blank" href="%s" class="button">Edit</a>',
-                    esc_url($edit_url)
-                );
+                if (empty($item['post_parent'])) { // 仅为主产品显示编辑按钮
+                    $edit_url = admin_url('post.php?post=' . $item['ID'] . '&action=edit');
+                    return sprintf(
+                        '<a target="_blank" href="%s" class="button">Edit</a>',
+                        esc_url($edit_url)
+                    );
+                }
+                return ''; // 变体不显示编辑按钮
 
             default:
                 return print_r($item, true); 
