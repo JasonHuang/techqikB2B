@@ -76,6 +76,7 @@ class Products_List_Table extends WP_List_Table {
             LEFT JOIN {$wpdb->posts} p2 ON p.post_parent = p2.ID
             LEFT JOIN {$wpdb->postmeta} pm2 ON p2.ID = pm2.post_id
             WHERE p.post_type IN ('product', 'product_variation')
+            AND (p.post_status = 'publish' OR (p.post_status = 'inherit' AND p2.post_status = 'publish'))
             $search_query
             GROUP BY p.ID
             ORDER BY p.post_parent, p.ID
