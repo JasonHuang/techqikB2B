@@ -14,21 +14,6 @@ if (!defined('ABSPATH')) {
 
 require_once TECHQIKB2B_PATH . 'includes/functions/class-products-list-table.php';
 
-// function bulk_update_products_menu() {
-//     $hook = add_submenu_page(
-//         'Bulk Update Products',
-//         'Bulk Update Products',
-//         'manage_options',
-//         'bulk_update_products-settings',
-//         'bulk_update_products_page',
-//         null,
-//         99
-//     );
-
-//     add_action("load-$hook", 'set_bulk_update_products_screen_options');
-// }
-// add_action('admin_menu', 'bulk_update_products_menu');
-
 function set_bulk_update_products_screen_options() {
     $option = 'per_page';
     $args = array(
@@ -62,9 +47,10 @@ function display_products_list_table() {
                 <input type="hidden" name="page" value="techqikb2b_product_bulk_update">
                 <input type="text" name="s" placeholder="Search products" value="<?php echo $search_query; ?>">
                 <input type="submit" value="Search" class="button">
+                <input type="button" id="clear-search" value="Clear" class="button">
             </form>
         </div>
-        <form method="post">
+        <form method="post">    
             <?php
             $list_table->display();
             ?>

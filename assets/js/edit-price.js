@@ -43,6 +43,12 @@
                 }
             });
         });
+
+        $('#clear-search').on('click', function (e) {
+            e.preventDefault();
+            $('#product-search-input').val('');
+            $(this).closest('form').submit();
+        });
     });
 
     // 确保showMessage函数也在IIFE内

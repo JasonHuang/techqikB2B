@@ -6,9 +6,6 @@ if (!class_exists('WP_List_Table')) {
 
 class Products_List_Table extends WP_List_Table {
     private $per_page;
-    // private $use_cost_profit;
-    // private $general_profit;
-    // private $exchange_rate;
 
     public function __construct($args = array()) {
         parent::__construct($args);
@@ -19,17 +16,6 @@ class Products_List_Table extends WP_List_Table {
         if (isset($_REQUEST['products_per_page'])) {
             update_user_meta(get_current_user_id(), 'products_per_page', $this->per_page);
         }
-
-        // $options = get_option('techqik_general_options');
-        // $this->use_cost_profit = isset($options['use_cost_profit']) ? $options['use_cost_profit'] : 0;
-        // $this->general_profit = isset($options['general_profit']) ? floatval($options['general_profit']) : 0;
-
-        // $options_wbs = get_option('wbs_options');
-        // $this->exchange_rate = isset($options_wbs['exchange_rate']) ? floatval($options_wbs['exchange_rate']) : 1;
-
-        // error_log("use_cost_profit:$this->use_cost_profit");
-        // error_log("general_profit:$this->general_profit");
-        // error_log("exchange_rate:$this->exchange_rate");
     }
 
     public function prepare_items() {
@@ -47,14 +33,28 @@ class Products_List_Table extends WP_List_Table {
 
     private function get_total_products() {
         global $wpdb;
-        $search_query = '';
+        
+        $where_clause = "WHERE (p.post_type = 'product' AND p.post_status = 'publish')
+            OR (p.post_type = 'product_variation' AND p.post_status = 'publish')
+            OR (p.post_type = 'product_variation' AND p.post_status = 'inherit' AND p2.post_status = 'publish')";
+        
         if (!empty($_REQUEST['s'])) {
-            $search = esc_sql($_REQUEST['s']);
-            $search_query = "AND (p.post_title LIKE '%$search%' OR pm.meta_value LIKE '%$search%')";
+            $search = '%' . $wpdb->esc_like($_REQUEST['s']) . '%';
+            $where_clause .= $wpdb->prepare(
+                " AND (p.post_title LIKE %s OR pm.meta_value LIKE %s OR p2.post_title LIKE %s OR pm2.meta_value LIKE %s)",
+                $search, $search, $search, $search
+            );
         }
-        return $wpdb->get_var("SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->prefix}posts p 
-            LEFT JOIN {$wpdb->prefix}postmeta pm ON p.ID = pm.post_id 
-            WHERE p.post_type IN ('product', 'product_variation') $search_query");
+        
+        $query = "SELECT COUNT(DISTINCT p.ID) 
+            FROM {$wpdb->posts} p 
+            LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
+            LEFT JOIN {$wpdb->posts} p2 ON p.post_parent = p2.ID
+            LEFT JOIN {$wpdb->postmeta} pm2 ON p2.ID = pm2.post_id
+            $where_clause";
+        error_log("total query:$query");
+
+        return $wpdb->get_var($query);
     }
 
     private function get_products($current_page, $per_page) {
@@ -70,20 +70,27 @@ class Products_List_Table extends WP_List_Table {
 
         // 1. 获取基本产品信息
         $products_query = $wpdb->prepare(
-            "SELECT p.ID, p.post_title, p.post_parent, p2.post_title as parent_title
+            "SELECT p.ID, p.post_title, p.post_parent, p2.post_title as parent_title,
+                    CASE 
+                        WHEN p.post_parent = 0 THEN p.ID 
+                        ELSE p.post_parent 
+                    END as group_id
             FROM {$wpdb->posts} p
             LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
             LEFT JOIN {$wpdb->posts} p2 ON p.post_parent = p2.ID
             LEFT JOIN {$wpdb->postmeta} pm2 ON p2.ID = pm2.post_id
-            WHERE p.post_type IN ('product', 'product_variation')
-            AND (p.post_status = 'publish' OR (p.post_status = 'inherit' AND p2.post_status = 'publish'))
-            $search_query
+            WHERE (
+                (p.post_type = 'product' AND p.post_status = 'publish')
+                OR (p.post_type = 'product_variation' AND p.post_status = 'publish')
+                OR (p.post_type = 'product_variation' AND p.post_status = 'inherit' AND p2.post_status = 'publish')
+            ) $search_query
             GROUP BY p.ID
-            ORDER BY p.post_parent, p.ID
+            ORDER BY group_id, p.post_parent, p.menu_order, p.ID
             LIMIT %d, %d",
             array_merge($search_params, array($offset, $per_page))
         );
-        // error_log("products_query:$products_query");
+        
+        error_log("Products query: " . $products_query);
         $products = $wpdb->get_results($products_query, ARRAY_A);
 
         if (empty($products)) {
@@ -94,6 +101,9 @@ class Products_List_Table extends WP_List_Table {
         $placeholders = array_fill(0, count($product_ids), '%d');
         $product_ids_format = implode(',', $placeholders);
 
+        // error_log('products:'. print_r($products, true));
+        // error_log("product_ids_format:$product_ids_format");
+
         // 2. 获取产品元数据
         $meta_query = $wpdb->prepare(
             "SELECT post_id, meta_key, meta_value
@@ -103,6 +113,7 @@ class Products_List_Table extends WP_List_Table {
             $product_ids
         );
         $metas = $wpdb->get_results($meta_query, ARRAY_A);
+        // error_log('metas:'. print_r($metas, true));
 
         // 3. 获取品牌信息
         $brand_query = $wpdb->prepare(
@@ -115,10 +126,13 @@ class Products_List_Table extends WP_List_Table {
             array_merge($product_ids, array('ts_product_brand'))
         );
         $brands = $wpdb->get_results($brand_query, ARRAY_A);
+        // error_log('brands:'. print_r($brands, true));
 
         // 4. 整合数据
         $result = array();
         foreach ($products as $product) {
+            error_log('product:'. print_r($product, true));
+
             $product_data = array(
                 'ID' => $product['ID'],
                 'post_title' => $product['post_title'],
@@ -144,7 +158,11 @@ class Products_List_Table extends WP_List_Table {
 
             $result[] = $product_data;
         }
-
+        error_log("Total products retrieved: " . count($result));
+        error_log("Parent products: " . count($parent_products));
+        error_log("Variations: " . count($variations));
+        error_log("Sample parent product: " . print_r($parent_products[0] ?? 'None', true));
+        error_log("Sample variation: " . print_r($variations[0] ?? 'None', true));
         return $result;
     }
 
@@ -183,19 +201,12 @@ class Products_List_Table extends WP_List_Table {
             case 'post_title':
                 $title = isset($item[$column_name]) ? esc_html($item[$column_name]) : 'N/A';
                 if (!empty($item['parent_title'])) {
-                    $title = ' (Variation of: ' . esc_html($item['parent_title']) . ')';
+                    $title = ' (Variation) ' . esc_html($item[$column_name]);
                 }
                 return $title;
 
             case 'price':
-                // if ($this->use_cost_profit) {
-                //     $cost = isset($item['cost']) ? floatval($item['cost']) : 0;
-                //     $price = $cost / $this->exchange_rate + $this->general_profit;
-                //     return esc_html(number_format($price, 2, '.', ''));
-                // } else {
                 return isset($item[$column_name]) && $item[$column_name] !== '' ? esc_html($item[$column_name]) : '0';
-                // }
-
             case 'cost':
             case 'weight':
             case 'length':
@@ -269,7 +280,7 @@ class Products_List_Table extends WP_List_Table {
 
     public function display_rows() {
         $records = $this->items;
-
+        error_log('records:'. print_r($records, true));
         foreach ($records as $rec) {
             // Parent product row
             if (empty($rec['post_parent'])) {

@@ -30,6 +30,7 @@ function techqikb2b_add_admin_menu() {
 
     // Add submenu for Product Bulk Update
     $hook = add_submenu_page('techqikb2b_main_menu', 'Product Bulk Update', 'Product Bulk Update', 'manage_options', 'techqikb2b_product_bulk_update', 'bulk_update_products_page');
+    error_log("hook:$hook");
     add_action("load-$hook", 'set_bulk_update_products_screen_options');
 }
 add_action('admin_menu', 'techqikb2b_add_admin_menu');
