@@ -19,7 +19,7 @@ function add_cost_field() {
     woocommerce_wp_text_input(
         array(
             'id' => '_cost',
-            'label' => __('Cost (CNY)', 'woocommerce'),
+            'label' => __('Cost(CNY)', 'woocommerce'),
             'placeholder' => __('Enter the cost of the product in CNY', 'woocommerce'),
             'desc_tip' => 'true',
             'description' => __('Enter the cost of the product in Chinese Yuan (CNY).', 'woocommerce'),
@@ -32,7 +32,7 @@ function add_cost_field() {
     );
     echo '</div>';
 }
-add_action('woocommerce_product_options_pricing', 'add_cost_field');
+add_action('woocommerce_product_options_general_product_data', 'add_cost_field');
 
 // Save cost field value
 function save_cost_field($product_id) {
@@ -40,6 +40,35 @@ function save_cost_field($product_id) {
     update_post_meta($product_id, '_cost', $cost);
 }
 add_action('woocommerce_process_product_meta', 'save_cost_field');
+
+function add_cost_field_to_variations($loop, $variation_data, $variation) {
+    woocommerce_wp_text_input(
+        array(
+            'id' => 'variable_cost[' . $variation->ID . ']', // 注意这里的变化
+            'name' => 'variable_cost[' . $variation->ID . ']',
+            'label' => __('Cost(CNY)', 'woocommerce'),
+            'desc_tip' => 'true',
+            'description' => __('Enter the cost of the variation in Chinese Yuan (CNY).', 'woocommerce'),
+            'value' => get_post_meta($variation->ID, '_cost', true), // 使用 '_cost' 作为 meta key
+            'type' => 'number',
+            'custom_attributes' => array(
+                'step' => 'any',
+                'min' => '0',
+            ),
+        )
+    );
+}
+add_action('woocommerce_variation_options_pricing', 'add_cost_field_to_variations', 10, 3);
+
+// 保存变体成本
+function save_variation_cost_field($variation_id, $i) {
+    $variable_cost = $_POST['variable_cost'][$variation_id] ?? '';
+    if ('' !== $variable_cost) {
+        update_post_meta($variation_id, '_cost', wc_clean($variable_cost));
+    }
+}
+add_action('woocommerce_save_product_variation', 'save_variation_cost_field', 10, 2);
+
 
 // General settings page content
 function techqik_general_setting_page(){
