@@ -4,6 +4,8 @@ if (!class_exists('WP_List_Table')) {
     require_once(ABSPATH . 'wp-admin/includes/class-wp-list-table.php');
 }
 
+require_once TECHQIKB2B_PATH . 'includes/functions/product-update.php';
+
 class Products_List_Table extends WP_List_Table {
     private $per_page;
 
@@ -21,6 +23,8 @@ class Products_List_Table extends WP_List_Table {
     public function prepare_items() {
         $current_page = $this->get_pagenum();
         $total_items = $this->get_total_products();
+
+        $this->process_bulk_action();
 
         $this->set_pagination_args(array(
             'total_items' => $total_items,
@@ -52,7 +56,7 @@ class Products_List_Table extends WP_List_Table {
             LEFT JOIN {$wpdb->posts} p2 ON p.post_parent = p2.ID
             LEFT JOIN {$wpdb->postmeta} pm2 ON p2.ID = pm2.post_id
             $where_clause";
-        error_log("total query:$query");
+        // error_log("total query:$query");
 
         return $wpdb->get_var($query);
     }
@@ -90,7 +94,7 @@ class Products_List_Table extends WP_List_Table {
             array_merge($search_params, array($offset, $per_page))
         );
         
-        error_log("Products query: " . $products_query);
+        // error_log("Products query: " . $products_query);
         $products = $wpdb->get_results($products_query, ARRAY_A);
 
         if (empty($products)) {
@@ -131,7 +135,7 @@ class Products_List_Table extends WP_List_Table {
         // 4. 整合数据
         $result = array();
         foreach ($products as $product) {
-            error_log('product:'. print_r($product, true));
+            // error_log('product:'. print_r($product, true));
 
             $product_data = array(
                 'ID' => $product['ID'],
@@ -158,14 +162,38 @@ class Products_List_Table extends WP_List_Table {
 
             $result[] = $product_data;
         }
-        error_log("Total products retrieved: " . count($result));
-        error_log("Parent products: " . count($parent_products));
-        error_log("Variations: " . count($variations));
-        error_log("Sample parent product: " . print_r($parent_products[0] ?? 'None', true));
-        error_log("Sample variation: " . print_r($variations[0] ?? 'None', true));
+        // error_log("Total products retrieved: " . count($result));
         return $result;
     }
+    
+    protected function get_bulk_actions() {
+        $actions = array(
+            'update_selected_prices' => 'Update Selected Prices',
+            'update_all_prices' => 'Update All Prices'
+        );
+        return $actions;
+    }
 
+    public function process_bulk_action() {
+        $action = $this->current_action();
+        error_log("Current action: " . $action);  // 调试日志
+
+        if ($action === 'update_all_prices'){
+            wp_schedule_single_event(time() + 3, 'techqik_update_product_prices_action');
+        }else if($action === 'update_selected_prices'){
+
+            $options = get_option('techqik_general_options');
+            $profit = isset($options['general_profit']) ? floatval($options['general_profit']) : 8;
+            $general_exchange_rate = isset($options['general_exchange_rate']) ? floatval($options['general_exchange_rate']) : 7.1;
+            error_log("WooCommerce Product Cost: Profit: $profit USD, Exchange Rate: $general_exchange_rate CNY/USD");
+
+            $post_ids = isset($_POST['product']) ? $_POST['product'] : array();
+            foreach ($post_ids as $post_id) {
+                error_log("post_id:$post_id");
+                techqikb2b_update_product_price($post_id, $profit, $general_exchange_rate);
+            }
+        }
+    }
 
     public function get_columns() {
         $columns = array(
@@ -280,7 +308,7 @@ class Products_List_Table extends WP_List_Table {
 
     public function display_rows() {
         $records = $this->items;
-        error_log('records:'. print_r($records, true));
+        // error_log('records:'. print_r($records, true));
         foreach ($records as $rec) {
             // Parent product row
             if (empty($rec['post_parent'])) {
