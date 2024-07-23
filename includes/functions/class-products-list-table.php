@@ -179,19 +179,38 @@ class Products_List_Table extends WP_List_Table {
         error_log("Current action: " . $action);  // 调试日志
 
         if ($action === 'update_all_prices'){
+            if (techqik_is_update_locked()) {
+                add_settings_error('techqik_price_update', 'update_in_progress', 'A price update is already in progress. Please wait for it to complete.', 'error');
+                error_log("update_in_progress");  // 调试日志
+                return;
+            }
+            error_log("update all event is scheduled");  // 调试日志
+
+            // 设置更新进行中的标志
+            techqik_set_update_lock();
+
+            // 调度更新事件a
             wp_schedule_single_event(time() + 3, 'techqik_update_product_prices_action');
+
+            // add_settings_error('techqik_price_update', 'update_scheduled', 'Product price update has been scheduled. You can check the progress in the admin dashboard.', 'info');
         }else if($action === 'update_selected_prices'){
 
             $options = get_option('techqik_general_options');
             $profit = isset($options['general_profit']) ? floatval($options['general_profit']) : 8;
             $general_exchange_rate = isset($options['general_exchange_rate']) ? floatval($options['general_exchange_rate']) : 7.1;
-            error_log("WooCommerce Product Cost: Profit: $profit USD, Exchange Rate: $general_exchange_rate CNY/USD");
+            // error_log("WooCommerce Product Cost: Profit: $profit USD, Exchange Rate: $general_exchange_rate CNY/USD");
 
             $post_ids = isset($_POST['product']) ? $_POST['product'] : array();
+            $total = count($post_ids);
+            $updated = 0;
+
             foreach ($post_ids as $post_id) {
-                error_log("post_id:$post_id");
+                // error_log("post_id:$post_id");
                 techqikb2b_update_product_price($post_id, $profit, $general_exchange_rate);
+                $updated++;
             }
+            add_settings_error('techqik_price_update', 'update_scheduled', 'Selected products updated.', 'info');
+
         }
     }
 

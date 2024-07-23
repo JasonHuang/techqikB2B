@@ -41,6 +41,7 @@ function display_products_list_table() {
         <h2>Product List</h2>
         <div class="overlay">
             <div class="message-box">操作成功!</div>
+            <?php settings_errors('techqik_price_update'); ?>
         </div>
         <div class="search-box">
             <form method="get">
@@ -62,23 +63,7 @@ function display_products_list_table() {
 function bulk_update_products_page() {
     ?>
     <h1>Bulk Update Products</h1>
-    <button id="open-popup">Add Data</button>
-    <div id="dialog" title="Product Attributes" style="display:none;">
-        <form>
-            <input type="submit" value="Submit">
-        </form>
-    </div>
-    <script type="text/javascript">
-        jQuery(document).ready(function($) {
-            $("#open-popup").on("click", function() {
-                $("#dialog").dialog({
-                    modal: true,
-                    width: 500,
-                    height: 400,
-                });
-            });
-        });
-    </script>
+    <div>Bulk update product cost,price,weight,length,width,height.</div>
     <?php
     display_products_list_table();
 }

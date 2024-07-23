@@ -79,7 +79,7 @@ function techqik_general_setting_page(){
             <?php
             settings_fields('techqik_general_options_group');
             do_settings_sections('techqik-general-settings');
-            submit_button('Save Settings and Update Prices');
+            submit_button('Save Settings');
             ?>
         </form>
     </div>

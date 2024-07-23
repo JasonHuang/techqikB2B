@@ -1,5 +1,8 @@
 <?php
 
+require_once TECHQIKB2B_PATH . 'includes/functions/techqik-lock.php';
+
+
 function techqikb2b_update_product_price($product_id, $profit, $general_exchange_rate) {
     $product = wc_get_product($product_id);
     if ($product) {
@@ -25,24 +28,15 @@ add_action('techqik_update_product_prices_action', 'techqik_update_product_price
 
 // The function to update product prices
 function techqik_update_product_prices() {
-    // Check if an update is already in progress
-    if (get_transient('techqik_price_update_in_progress')) {
-        error_log("WooCommerce Product Cost: Price update already in progress. Skipping this request.");
-        return;
-    }
-
-    // Set the transient to indicate an update is in progress
-    set_transient('techqik_price_update_in_progress', true, 5 * MINUTE_IN_SECONDS);
 
     error_log("WooCommerce Product Cost: Price update process started");
     $options = get_option('techqik_general_options');
     $profit = isset($options['general_profit']) ? floatval($options['general_profit']) : 8;
     $general_exchange_rate = isset($options['general_exchange_rate']) ? floatval($options['general_exchange_rate']) : 7.1;
 
-    error_log("WooCommerce Product Cost: Profit: $profit USD, Exchange Rate: $general_exchange_rate CNY/USD");
-
     $products = wc_get_products(array('limit' => -1));
-    $updated_count = 0;
+    $total = count($products);
+    $updated = 0;
     $error_count = 0;
 
     foreach ($products as $product) {
@@ -54,26 +48,27 @@ function techqik_update_product_prices() {
                 foreach ($variations as $variation_id) {
                     $variation = wc_get_product($variation_id);
                     techqik_update_product_prices_helper($variation, $profit, $general_exchange_rate);
-                    $updated_count++;
                 }
             } 
             techqik_update_product_prices_helper($product, $profit, $general_exchange_rate);
-            $updated_count++;
+            $updated++;
 
+            update_option('techqik_price_update_progress', array(
+                'total' => $total,
+                'updated' => $updated,
+                'percentage' => round(($updated / $total) * 100, 2)
+            ));
         } catch (Exception $e) {
             error_log("WooCommerce Product Cost: Error updating product ID: {$product->get_id()}, SKU: $sku. Error: " . $e->getMessage());
             $error_count++;
-        } finally {
-            // Always delete the transient, even if an error occurred
-            delete_transient('techqik_price_update_in_progress');
         }
     }
+    error_log("WooCommerce Product Cost: Price update process completed. Updated: $updated, Errors: $error_count");
 
-    error_log("WooCommerce Product Cost: Price update process completed. Updated: $updated_count, Errors: $error_count");
-
-    update_option('techqik_price_update_notice', "Successfully updated prices for $updated_count products. Errors: $error_count.");
+    update_option('techqik_price_update_progress', "Successfully updated prices for $updated products. Errors: $error_count.");
+    techqik_release_update_lock();
+    delete_option('techqik_price_update_progress');
 }
-
 
 function techqik_update_product_prices_helper($product, $profit, $exchange_rate) {
     $cost_cny = get_post_meta($product->get_id(), '_cost', true);
@@ -118,11 +113,14 @@ function techqik_update_product_prices_helper($product, $profit, $exchange_rate)
     ));
 }
 
+add_action('wp_ajax_get_price_update_progress', 'techqik_get_price_update_progress');
 
-// Display the notice
-add_action('admin_notices', 'techqik_display_price_update_notice');
+function techqik_get_price_update_progress() {
+    $progress = get_option('techqik_price_update_progress', array('percentage' => 0));
+    wp_send_json($progress);
+}
 
-function techqik_display_price_update_notice() {
+function techqik_display_update_progress() {
     if ($notice = get_option('techqik_price_update_notice')) {
         ?>
         <div class="notice notice-success is-dismissible">
@@ -132,16 +130,87 @@ function techqik_display_price_update_notice() {
         delete_option('techqik_price_update_notice');
     }
 
-    if (techqik_is_price_update_in_progress()) {
+    if (techqik_is_update_locked()) {
+        $progress = get_option('techqik_price_update_progress', array('percentage' => 0));
         ?>
-        <div class="notice notice-warning">
-            <p><?php _e('Product price update is currently in progress. This may take a few minutes.', 'woo-product-cost'); ?></p>
+        <div id="techqik-update-progress" class="notice notice-warning">
+            <p><?php _e('Product price update is currently in progress. Progress: ', 'woo-product-cost'); ?><span id="price-update-progress"><?php echo $progress['percentage']; ?></span>%</p>
         </div>
+        <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            var lastProgress = -1;
+            var noProgressCount = 0;
+            var maxNoProgressAttempts = 5;
+
+            function updateProgress() {
+                $.ajax({
+                    url: ajaxurl,
+                    data: {
+                        'action': 'get_price_update_progress'
+                    },
+                    success: function(response) {
+                        var $notice = $('#techqik-update-progress');
+                        var $progressSpan = $('#price-update-progress');
+                        
+                        if (response && typeof response.percentage !== 'undefined') {
+                            var currentProgress = parseFloat(response.percentage);
+                            
+                            if (currentProgress === 100 || (currentProgress === 0 && lastProgress > 0)) {
+                                // 进度到达100%或突然回到0%（可能表示更新完成）
+                                $notice.fadeOut('slow', function() {
+                                    $(this).remove();
+                                });
+                                return;
+                            }
+
+                            if (currentProgress === lastProgress) {
+                                noProgressCount++;
+                            } else {
+                                noProgressCount = 0;
+                            }
+
+                            if (noProgressCount >= maxNoProgressAttempts) {
+                                // 多次没有进度变化，可能更新已完成
+                                $notice.fadeOut('slow', function() {
+                                    $(this).remove();
+                                });
+                                return;
+                            }
+
+                            $progressSpan.text(currentProgress);
+                            lastProgress = currentProgress;
+                            
+                            setTimeout(updateProgress, 1000);
+                        } else {
+                            // 响应中没有百分比数据，可能更新已完成
+                            $notice.fadeOut('slow', function() {
+                                $(this).remove();
+                            });
+                        }
+                    },
+                    error: function() {
+                        // AJAX请求失败，可能是因为后端数据已被删除
+                        $('#techqik-update-progress').fadeOut('slow', function() {
+                            $(this).remove();
+                        });
+                    }
+                });
+            }
+            
+            updateProgress();
+        });
+        </script>
         <?php
     }
 }
 
-// Function to check if price update is in progress
-function techqik_is_price_update_in_progress() {
-    return get_transient('techqik_price_update_in_progress');
+// 在适当的管理页面中调用显示函数
+add_action('admin_notices', 'techqik_maybe_display_update_progress');
+function techqik_maybe_display_update_progress() {
+    // 确保只在相关的管理页面显示
+    $screen = get_current_screen();
+    error_log("screen id:$screen->id");
+    if ($screen->id === 'techqikb2b_page_techqikb2b_product_bulk_update') {
+        techqik_display_update_progress();
+    }
 }

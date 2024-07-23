@@ -32,6 +32,15 @@ function techqikb2b_add_admin_menu() {
     $hook = add_submenu_page('techqikb2b_main_menu', 'Product Bulk Update', 'Product Bulk Update', 'manage_options', 'techqikb2b_product_bulk_update', 'bulk_update_products_page');
     // error_log("hook:$hook");
     add_action("load-$hook", 'set_bulk_update_products_screen_options');
+
+    add_submenu_page(
+        'techqikb2b_main_menu',
+        'Unlock Price Update',
+        'Unlock Price Update',
+        'manage_options',
+        'techqikb2b_unlock_price_update',
+        'techqik_unlock_price_update_page'
+    );
 }
 add_action('admin_menu', 'techqikb2b_add_admin_menu');
 
@@ -67,4 +76,27 @@ function techqikb2b_main_page() {
 function wbs_active_tab($tab_name) {
     $current_tab = isset($_GET['tab']) ? $_GET['tab'] : 'general';
     return $current_tab == $tab_name ? 'nav-tab-active' : '';
+}
+
+function techqik_unlock_price_update_page() {
+    if (isset($_POST['unlock_price_update']) && check_admin_referer('unlock_price_update')) {
+        techqik_release_update_lock();
+        echo '<div class="notice notice-success"><p>Price update has been unlocked.</p></div>';
+    }
+
+    $is_locked = techqik_is_update_locked();
+    ?>
+    <div class="wrap">
+        <h1>Unlock Price Update</h1>
+        <?php if ($is_locked): ?>
+            <p>The price update process is currently locked. This may be due to an ongoing update or an update that did not complete properly.</p>
+            <form method="post">
+                <?php wp_nonce_field('unlock_price_update'); ?>
+                <input type="submit" name="unlock_price_update" class="button button-primary" value="Unlock Price Update">
+            </form>
+        <?php else: ?>
+            <p>The price update process is not currently locked.</p>
+        <?php endif; ?>
+    </div>
+    <?php
 }
