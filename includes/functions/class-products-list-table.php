@@ -35,7 +35,7 @@ class Products_List_Table extends WP_List_Table {
         $this->_column_headers = array($this->get_columns(), array(), $this->get_sortable_columns());
     }
 
-    private function get_total_products() {
+    /*private function get_total_products() {
         global $wpdb;
         
         $where_clause = "WHERE (p.post_type = 'product' AND p.post_status = 'publish')
@@ -57,6 +57,43 @@ class Products_List_Table extends WP_List_Table {
             LEFT JOIN {$wpdb->postmeta} pm2 ON p2.ID = pm2.post_id
             $where_clause";
         // error_log("total query:$query");
+
+        return $wpdb->get_var($query);
+    }*/
+
+    private function get_total_products() {
+        global $wpdb;
+
+        $where_clause = "WHERE (p.post_type = %s AND p.post_status = %s)
+            OR (p.post_type = %s AND p.post_status = %s)
+            OR (p.post_type = %s AND p.post_status = %s AND p2.post_status = %s)";
+
+        $query_params = [
+            'product', 'publish',
+            'product_variation', 'publish',
+            'product_variation', 'inherit', 'publish'
+        ];
+
+        $search_condition = "";
+
+        if (!empty($_REQUEST['s'])) {
+            $search = '%' . $wpdb->esc_like($_REQUEST['s']) . '%';
+            $search_condition = " AND (p.post_title LIKE %s OR pm.meta_value LIKE %s OR p2.post_title LIKE %s OR pm2.meta_value LIKE %s)";
+            $query_params = array_merge($query_params, [$search, $search, $search, $search]);
+        }
+
+        $query = $wpdb->prepare(
+            "SELECT COUNT(DISTINCT p.ID)
+            FROM {$wpdb->posts} p
+            LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+            LEFT JOIN {$wpdb->posts} p2 ON p.post_parent = p2.ID
+            LEFT JOIN {$wpdb->postmeta} pm2 ON p2.ID = pm2.post_id
+            $where_clause
+            $search_condition",
+            $query_params
+        );
+
+        // error_log("total query: " . $query);
 
         return $wpdb->get_var($query);
     }
@@ -312,16 +349,27 @@ class Products_List_Table extends WP_List_Table {
             $per_page = $this->get_items_per_page('products_per_page', 10);
             $current_url = remove_query_arg('products_per_page');
 
-            echo '<div class="alignleft actions">';
-            echo '<label for="products_per_page" class="screen-reader-text">' . __('Products per page', 'wc-product-import-export') . '</label>';
-            echo '<select name="products_per_page" id="products_per_page" onchange="location.href=this.value;">';
-            foreach (array(10, 20, 50, 100) as $value) {
-                $url = add_query_arg('products_per_page', $value, $current_url);
-                $selected = ($per_page == $value) ? ' selected="selected"' : '';
-                echo '<option value="' . esc_url($url) . '"' . $selected . '>' . $value . '</option>';
-            }
-            echo '</select>';
-            echo '</div>';
+            ?>
+            <div class="alignleft actions">
+                <label for="products_per_page" class="screen-reader-text">
+                    <?php echo esc_html__('Products per page', 'wc-product-import-export'); ?>
+                </label>
+                <select name="products_per_page" id="products_per_page" onchange="location.href=this.value;">
+                    <?php
+                    foreach (array(10, 20, 50, 100) as $value) {
+                        $url = add_query_arg('products_per_page', $value, $current_url);
+                        $selected = ($per_page == $value) ? ' selected="selected"' : '';
+                        printf(
+                            '<option value="%s"%s>%d</option>',
+                            esc_url($url),
+                            esc_attr($selected),
+                            esc_html($value)
+                        );
+                    }
+                    ?>
+                </select>
+            </div>
+            <?php
         }
     }
 

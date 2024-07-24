@@ -4,7 +4,7 @@
  * Description: A WooCommerce plugin to transform your site to B2B site.
  * Version: 1.0.0
  * Author: Techqik
- * Text Domain: techqik-b2b
+ * Text Domain: techqikB2B
  * License: GPL2
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
@@ -51,11 +51,10 @@ function techqikb2b_main_page() {
         <h1>Settings</h1>
         <?php settings_errors(); ?>
         <h2 class="nav-tab-wrapper">
-            <a href="?page=techqikb2b_main_menu&tab=general" class="nav-tab <?php echo wbs_active_tab('general'); ?>">General</a>
-            <a href="?page=techqikb2b_main_menu&tab=shipping" class="nav-tab <?php echo wbs_active_tab('shipping'); ?>">Shipping</a>
-            <a href="?page=techqikb2b_main_menu&tab=amount" class="nav-tab <?php echo wbs_active_tab('amount'); ?>">Order Total</a>
+            <a href="?page=techqikb2b_main_menu&tab=general" class="nav-tab <?php echo esc_attr(wbs_active_tab('general')); ?>">General</a>
+            <a href="?page=techqikb2b_main_menu&tab=shipping" class="nav-tab <?php echo esc_attr(wbs_active_tab('shipping')); ?>">Shipping</a>
+            <a href="?page=techqikb2b_main_menu&tab=amount" class="nav-tab <?php echo esc_attr(wbs_active_tab('amount')); ?>">Order Total</a>
         </h2>
-
         <form method="post" action="options.php">
             <?php
             $tab = isset($_GET['tab']) ? $_GET['tab'] : 'general';

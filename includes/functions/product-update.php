@@ -134,7 +134,7 @@ function techqik_display_update_progress() {
         $progress = get_option('techqik_price_update_progress', array('percentage' => 0));
         ?>
         <div id="techqik-update-progress" class="notice notice-warning">
-            <p><?php _e('Product price update is currently in progress. Progress: ', 'woo-product-cost'); ?><span id="price-update-progress"><?php echo $progress['percentage']; ?></span>%</p>
+            <p><?php esc_html_e('Product price update is currently in progress. Progress: ', 'woo-product-cost'); ?><span id="price-update-progress"><?php echo esc_attr($progress['percentage']); ?></span>%</p>
         </div>
         <script type="text/javascript">
         jQuery(document).ready(function($) {

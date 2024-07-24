@@ -88,13 +88,27 @@ function wc_order_amount_settings_init() {
 function wc_include_shipping_amount_field() {
     $options = get_option('wc_order_amount_options');
     $checked = isset($options['include_shipping']) && $options['include_shipping'] ? 'checked="checked"' : '';
-    echo "<input id='wc_include_shipping_amount' name='wc_order_amount_options[include_shipping]' type='checkbox' value='1' $checked />";
+    ?>
+    <input type="checkbox" 
+           id="<?php echo esc_attr('wc_include_shipping_amount'); ?>" 
+           name="<?php echo esc_attr('wc_order_amount_options[include_shipping]'); ?>" 
+           value="1" 
+           <?php echo esc_attr($checked); ?> 
+    />
+    <?php
 }
 
 function wc_enable_order_amount_limit_field() {
     $options = get_option('wc_order_amount_options');
     $checked = isset($options['enable_limit']) ? checked(1, $options['enable_limit'], false) : '';
-    echo "<input id='wc_enable_order_amount_limit' name='wc_order_amount_options[enable_limit]' type='checkbox' value='1' $checked />";
+    ?>
+    <input id="wc_enable_order_amount_limit" 
+           name="wc_order_amount_options[enable_limit]" 
+           type="checkbox" 
+           value="1" 
+           <?php echo esc_attr($checked); ?> 
+    />
+    <?php
 }
 
 function wc_order_amount_section_text() {

@@ -46,7 +46,7 @@ function display_products_list_table() {
         <div class="search-box">
             <form method="get">
                 <input type="hidden" name="page" value="techqikb2b_product_bulk_update">
-                <input type="text" name="s" placeholder="Search products" value="<?php echo $search_query; ?>">
+                <input type="text" name="s" placeholder="Search products" value="<?php echo esc_attr($search_query); ?>">
                 <input type="submit" value="Search" class="button">
                 <input type="button" id="clear-search" value="Clear" class="button">
             </form>
