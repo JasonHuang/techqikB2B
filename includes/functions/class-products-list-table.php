@@ -89,7 +89,7 @@ class Products_List_Table extends WP_List_Table {
                 OR (p.post_type = 'product_variation' AND p.post_status = 'inherit' AND p2.post_status = 'publish')
             ) $search_query
             GROUP BY p.ID
-            ORDER BY group_id, p.post_parent, p.menu_order, p.ID
+            ORDER BY group_id desc, p.post_parent, p.menu_order, p.ID
             LIMIT %d, %d",
             array_merge($search_params, array($offset, $per_page))
         );

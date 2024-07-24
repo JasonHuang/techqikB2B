@@ -33,14 +33,14 @@ function techqikb2b_add_admin_menu() {
     // error_log("hook:$hook");
     add_action("load-$hook", 'set_bulk_update_products_screen_options');
 
-    add_submenu_page(
+    /*add_submenu_page(
         'techqikb2b_main_menu',
         'Unlock Price Update',
         'Unlock Price Update',
         'manage_options',
         'techqikb2b_unlock_price_update',
         'techqik_unlock_price_update_page'
-    );
+    );*/
 }
 add_action('admin_menu', 'techqikb2b_add_admin_menu');
 
